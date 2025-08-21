@@ -300,16 +300,6 @@
             <div class="charts-grid">
                 <div class="chart-container">
                     <div class="chart-header">
-                        <h3 class="chart-title">Recent Classes</h3>
-                        <select class="year-filter" id="recentYearFilter">
-                            <option value="all">All Time</option>
-                        </select>
-                    </div>
-                    <div id="recentChart" class="chart"></div>
-                </div>
-
-                <div class="chart-container">
-                    <div class="chart-header">
                         <h3 class="chart-title">Practice Activity - 3 Year View</h3>
                         <select class="year-filter" id="activityYearFilter">
                             <option value="2023-2025">2023-2025</option>
@@ -629,7 +619,6 @@
             renderMonthlyChart(chartData.monthlyData);
             renderDayChart(chartData.dayData);
             renderTimeChart(chartData.timeData);
-            renderRecentChart(yogaData); // Pass full data for recent classes
             renderActivityChart(chartData.dailyActivity);
             renderHeatmapChart(chartData.heatmapData);
             renderInstructorChart(chartData.topInstructors);
@@ -657,14 +646,13 @@
         }
 
         function setupYearFilters() {
-            const filterIds = ['monthlyYearFilter', 'dayYearFilter', 'timeYearFilter', 'instructorYearFilter', 'classYearFilter', 'locationYearFilter', 'heatmapYearFilter', 'recentYearFilter'];
+            const filterIds = ['monthlyYearFilter', 'dayYearFilter', 'timeYearFilter', 'instructorYearFilter', 'classYearFilter', 'locationYearFilter', 'heatmapYearFilter'];
             
             filterIds.forEach(filterId => {
                 const filter = document.getElementById(filterId);
                 
-                // Clear existing options except "All Years" or "All Time"
-                const defaultText = filterId === 'recentYearFilter' ? 'All Time' : 'All Years';
-                filter.innerHTML = `<option value="all">${defaultText}</option>`;
+                // Clear existing options except "All Years"
+                filter.innerHTML = '<option value="all">All Years</option>';
                 
                 // Add year options
                 availableYears.forEach(year => {
@@ -740,9 +728,6 @@
                     break;
                 case 'heatmap':
                     renderHeatmapChart(chartData.heatmapData);
-                    break;
-                case 'recent':
-                    renderRecentChart(filteredData);
                     break;
             }
         }
@@ -890,114 +875,6 @@
             }
             
             return heatmapArray;
-        }
-
-        function renderRecentChart(data) {
-            const chart = echarts.init(document.getElementById('recentChart'));
-            
-            // Get 10 most recent classes
-            const recentClasses = [...data]
-                .sort((a, b) => new Date(b.start_time) - new Date(a.start_time))
-                .slice(0, 10);
-            
-            // Prepare data for timeline chart
-            const timelineData = recentClasses.map((cls, index) => {
-                const date = new Date(cls.start_time);
-                const formattedDate = date.toLocaleDateString('en-US', { 
-                    month: 'short', 
-                    day: 'numeric' 
-                });
-                const dayOfWeek = date.toLocaleDateString('en-US', { weekday: 'short' });
-                
-                return {
-                    name: `${formattedDate} (${dayOfWeek})`,
-                    value: [
-                        index,
-                        `${cls.class_name}\n${cls.instructor}\n${cls.time_display}`,
-                        cls.class_name,
-                        cls.instructor,
-                        cls.time_display,
-                        formattedDate,
-                        dayOfWeek
-                    ],
-                    itemStyle: {
-                        color: chartColors[index % chartColors.length]
-                    }
-                };
-            });
-            
-            const option = {
-                backgroundColor: 'transparent',
-                tooltip: {
-                    trigger: 'item',
-                    formatter: function(params) {
-                        const data = params.data.value;
-                        return `<strong>${data[2]}</strong><br/>
-                                Instructor: ${data[3]}<br/>
-                                Time: ${data[4]}<br/>
-                                Date: ${data[5]} (${data[6]})`;
-                    },
-                    backgroundColor: colors.dark,
-                    borderColor: colors.primary,
-                    textStyle: { color: colors.light }
-                },
-                grid: {
-                    left: '3%',
-                    right: '4%',
-                    bottom: '3%',
-                    containLabel: true
-                },
-                xAxis: {
-                    type: 'category',
-                    data: timelineData.map(d => d.name),
-                    axisLabel: { 
-                        color: colors.muted,
-                        fontSize: 10,
-                        rotate: 45,
-                        interval: 0
-                    },
-                    axisLine: { lineStyle: { color: '#2d3748' } },
-                    axisTick: { show: false }
-                },
-                yAxis: {
-                    type: 'category',
-                    data: ['Recent Classes'],
-                    axisLabel: { color: colors.muted },
-                    axisLine: { lineStyle: { color: '#2d3748' } },
-                    axisTick: { show: false },
-                    splitLine: { show: false }
-                },
-                series: [{
-                    type: 'scatter',
-                    data: timelineData.map((item, index) => [index, 0]),
-                    symbolSize: 20,
-                    itemStyle: {
-                        color: function(params) {
-                            return chartColors[params.dataIndex % chartColors.length];
-                        }
-                    },
-                    label: {
-                        show: true,
-                        position: 'top',
-                        formatter: function(params) {
-                            const classData = recentClasses[params.dataIndex];
-                            return `${classData.class_name}\n${classData.instructor}`;
-                        },
-                        color: colors.light,
-                        fontSize: 10,
-                        lineHeight: 12
-                    },
-                    emphasis: {
-                        scale: 1.5,
-                        itemStyle: {
-                            shadowBlur: 10,
-                            shadowColor: 'rgba(0, 0, 0, 0.5)'
-                        }
-                    }
-                }]
-            };
-            
-            chart.setOption(option);
         }
 
         function renderMonthlyChart(monthlyData) {
