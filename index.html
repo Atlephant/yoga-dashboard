@@ -364,14 +364,14 @@
     </div>
 
     <script>
-        // Supabase configuration - loaded from Netlify environment variables
+        // Supabase configuration - loaded from Netlify function
         const SUPABASE_URL = 'https://druvfhkainyorfsjkckl.supabase.co';
         let SUPABASE_ANON_KEY = ''; // Will be loaded from Netlify function
         
         // Load config from Netlify function
         async function loadConfig() {
             try {
-                debugLog('🔧 Loading configuration from Netlify...');
+                debugLog('🔧 Loading configuration from Netlify function...');
                 const response = await fetch('/.netlify/functions/get-config');
                 
                 if (!response.ok) {
@@ -385,7 +385,7 @@
                     throw new Error('API key not found in configuration');
                 }
                 
-                debugLog('✅ Configuration loaded successfully');
+                debugLog('✅ Configuration loaded successfully from Netlify function');
                 return true;
             } catch (error) {
                 debugLog(`❌ Failed to load config: ${error.message}`);
@@ -591,14 +591,14 @@
                 document.getElementById('debugInfo').style.display = 'block';
                 
                 // Add specific help for common issues
-                if (err.message.includes('API key not loaded')) {
+                if (err.message.includes('Config request failed')) {
                     document.getElementById('errorMessage').innerHTML = 
-                        'API key not loaded from Netlify environment variables.<br>' +
-                        '<small>Please check that SUPABASE_ANON_KEY is set in your Netlify site settings.</small>';
-                } else if (err.message.includes('Config request failed')) {
+                        'Netlify function not found or failed.<br>' +
+                        '<small>Please ensure the get-config function is deployed and environment variable is set.</small>';
+                } else if (err.message.includes('API key not found')) {
                     document.getElementById('errorMessage').innerHTML = 
-                        'Failed to load configuration.<br>' +
-                        '<small>Please ensure the get-config Netlify function is deployed properly.</small>';
+                        'API key not found in environment variables.<br>' +
+                        '<small>Please check that SUPABASE_ANON_KEY is set in Netlify settings.</small>';
                 }
             }
         }
@@ -1487,8 +1487,8 @@
                 loading.classList.add('hidden');
                 error.classList.add('visible');
                 document.getElementById('errorMessage').innerHTML = 
-                    'Failed to load configuration from Netlify.<br>' +
-                    '<small>Please check that your Netlify function is deployed and SUPABASE_ANON_KEY environment variable is set.</small>';
+                    'Failed to load configuration from Netlify function.<br>' +
+                    '<small>Please check that the function is deployed and environment variable is set.</small>';
                 document.getElementById('debugInfo').style.display = 'block';
                 return;
             }
