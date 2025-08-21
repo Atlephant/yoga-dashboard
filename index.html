@@ -287,7 +287,7 @@
                 </div>
             </div>
 
-            <div class="chart-container">
+            <div class="chart-container" style="margin-bottom: 2rem;">
                 <div class="chart-header">
                     <h3 class="chart-title">Practice Time Preferences - Ranking Over Time</h3>
                     <select class="year-filter" id="timeYearFilter">
@@ -1031,7 +1031,7 @@
                     textStyle: { color: colors.light }
                 },
                 legend: {
-                    data: ['Morning', 'Afternoon', 'Evening', 'Night'],
+                    data: ['Morning (5am-12pm)', 'Afternoon (12pm-5pm)', 'Evening (5pm-9pm)', 'Night (9pm-5am)'],
                     textStyle: { color: colors.light },
                     bottom: 10
                 },
@@ -1070,7 +1070,7 @@
                 },
                 series: [
                     {
-                        name: 'Morning',
+                        name: 'Morning (5am-12pm)',
                         type: 'line',
                         data: monthlyTimeData.morning,
                         lineStyle: { color: colors.warning, width: 3 },
@@ -1080,7 +1080,7 @@
                         smooth: true
                     },
                     {
-                        name: 'Afternoon',
+                        name: 'Afternoon (12pm-5pm)',
                         type: 'line',
                         data: monthlyTimeData.afternoon,
                         lineStyle: { color: colors.primary, width: 3 },
@@ -1090,7 +1090,7 @@
                         smooth: true
                     },
                     {
-                        name: 'Evening',
+                        name: 'Evening (5pm-9pm)',
                         type: 'line',
                         data: monthlyTimeData.evening,
                         lineStyle: { color: colors.secondary, width: 3 },
@@ -1100,7 +1100,7 @@
                         smooth: true
                     },
                     {
-                        name: 'Night',
+                        name: 'Night (9pm-5am)',
                         type: 'line',
                         data: monthlyTimeData.night,
                         lineStyle: { color: colors.accent, width: 3 },
