@@ -1,0 +1,1501 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Matt's Yoga Practice Dashboard</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/6.0.0/echarts.min.js"></script>
+    <!-- Supabase JavaScript client -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #0a0a0b;
+            color: #e1e5e9;
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+
+        .header h1 {
+            font-size: 3rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.5rem;
+        }
+
+        .header p {
+            font-size: 1.2rem;
+            color: #a0a9b8;
+            font-weight: 300;
+        }
+
+        .loading {
+            display: block;
+            text-align: center;
+            padding: 3rem;
+            color: #a0a9b8;
+        }
+
+        .loading.hidden {
+            display: none;
+        }
+
+        .error {
+            display: none;
+            text-align: center;
+            padding: 2rem;
+            background: linear-gradient(135deg, #ff6b6b20 0%, #ff886620 100%);
+            border: 1px solid #ff6b6b;
+            border-radius: 12px;
+            margin-bottom: 2rem;
+            color: #ff8a80;
+        }
+
+        .error.visible {
+            display: block;
+        }
+
+        .debug-info {
+            background: #1a1a2e;
+            border: 1px solid #2d3748;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-top: 1rem;
+            font-family: monospace;
+            font-size: 0.8rem;
+            color: #a0a9b8;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .dashboard-content {
+            display: none;
+        }
+
+        .dashboard-content.visible {
+            display: block;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 3rem;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            border: 1px solid #2d3748;
+            border-radius: 12px;
+            padding: 1.5rem;
+            text-align: center;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.15);
+        }
+
+        .stat-number {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: #667eea;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-label {
+            color: #a0a9b8;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .chart-container {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            border: 1px solid #2d3748;
+            border-radius: 12px;
+            padding: 1.5rem;
+            transition: transform 0.2s ease;
+        }
+
+        .chart-container:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .chart-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #e1e5e9;
+            margin: 0;
+        }
+
+        .year-filter {
+            appearance: none;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            background: linear-gradient(135deg, rgba(22, 27, 34, 0.8) 0%, rgba(26, 26, 46, 0.9) 100%);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(102, 126, 234, 0.3);
+            border-radius: 8px;
+            color: #e1e5e9;
+            padding: 0.75rem 2.5rem 0.75rem 1rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%23667eea' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+            background-position: right 0.75rem center;
+            background-repeat: no-repeat;
+            background-size: 1rem;
+            min-width: 120px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2), 0 1px 2px rgba(0, 0, 0, 0.1);
+        }
+
+        .year-filter:hover {
+            border-color: rgba(102, 126, 234, 0.6);
+            background: linear-gradient(135deg, rgba(26, 26, 46, 0.9) 0%, rgba(45, 55, 72, 0.8) 100%);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15), 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .year-filter:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1), 0 4px 12px rgba(102, 126, 234, 0.15);
+            transform: translateY(-1px);
+        }
+
+        .year-filter option {
+            background: #1a1a2e;
+            color: #e1e5e9;
+            padding: 0.5rem;
+            border: none;
+        }
+
+        .chart {
+            width: 100%;
+            height: 400px;
+        }
+
+        .chart.large {
+            height: 500px;
+        }
+
+        .activity-chart {
+            height: 200px;
+            margin: 2rem 0;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .charts-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .chart {
+                height: 300px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🧘‍♀️ Matt's Yoga Journey</h1>
+            <p>Tracking the path to inner peace and strength</p>
+        </div>
+
+        <div class="loading" id="loading">
+            <h3>🔄 Loading your yoga practice data...</h3>
+            <p>Connecting to database...</p>
+        </div>
+
+        <div class="error" id="error">
+            <h3>⚠️ Database Connection Error</h3>
+            <p id="errorMessage">Unable to load yoga data. Please check your configuration.</p>
+            <div class="debug-info" id="debugInfo" style="display: none;"></div>
+        </div>
+
+        <div class="dashboard-content" id="dashboardContent">
+            <div class="stats-grid" id="statsGrid">
+                <!-- Stats will be populated by JavaScript -->
+            </div>
+
+            <div class="charts-grid">
+                <div class="chart-container">
+                    <div class="chart-header">
+                        <h3 class="chart-title">Monthly Classes Taken</h3>
+                        <select class="year-filter" id="monthlyYearFilter">
+                            <option value="all">All Years</option>
+                        </select>
+                    </div>
+                    <div id="monthlyChart" class="chart"></div>
+                </div>
+                
+                <div class="chart-container">
+                    <div class="chart-header">
+                        <h3 class="chart-title">Practice by Day of Week</h3>
+                        <select class="year-filter" id="dayYearFilter">
+                            <option value="all">All Years</option>
+                        </select>
+                    </div>
+                    <div id="dayChart" class="chart"></div>
+                </div>
+                
+                <div class="chart-container">
+                    <div class="chart-header">
+                        <h3 class="chart-title">Classes by Time of Day</h3>
+                        <select class="year-filter" id="timeYearFilter">
+                            <option value="all">All Years</option>
+                        </select>
+                    </div>
+                    <div id="timeChart" class="chart"></div>
+                </div>
+            </div>
+
+            <div class="charts-grid">
+                <div class="chart-container">
+                    <div class="chart-header">
+                        <h3 class="chart-title">Recent Classes</h3>
+                        <select class="year-filter" id="recentYearFilter">
+                            <option value="all">All Time</option>
+                        </select>
+                    </div>
+                    <div id="recentChart" class="chart"></div>
+                </div>
+
+                <div class="chart-container">
+                    <div class="chart-header">
+                        <h3 class="chart-title">Practice Activity - 3 Year View</h3>
+                        <select class="year-filter" id="activityYearFilter">
+                            <option value="2023-2025">2023-2025</option>
+                        </select>
+                    </div>
+                    <div id="activityChart" class="chart activity-chart large"></div>
+                </div>
+
+                <div class="chart-container">
+                    <div class="chart-header">
+                        <h3 class="chart-title">Practice Intensity by Day & Month</h3>
+                        <select class="year-filter" id="heatmapYearFilter">
+                            <option value="all">All Years</option>
+                        </select>
+                    </div>
+                    <div id="heatmapChart" class="chart large"></div>
+                </div>
+            </div>
+
+            <div class="charts-grid" style="margin-top: 3rem;">
+                <div class="chart-container">
+                    <div class="chart-header">
+                        <h3 class="chart-title">Favorite Instructors</h3>
+                        <select class="year-filter" id="instructorYearFilter">
+                            <option value="all">All Years</option>
+                        </select>
+                    </div>
+                    <div id="instructorChart" class="chart"></div>
+                </div>
+                
+                <div class="chart-container">
+                    <div class="chart-header">
+                        <h3 class="chart-title">Class Types</h3>
+                        <select class="year-filter" id="classYearFilter">
+                            <option value="all">All Years</option>
+                        </select>
+                    </div>
+                    <div id="classChart" class="chart"></div>
+                </div>
+            </div>
+
+            <div class="chart-container">
+                <div class="chart-header">
+                    <h3 class="chart-title">Studio Locations</h3>
+                    <select class="year-filter" id="locationYearFilter">
+                        <option value="all">All Years</option>
+                    </select>
+                </div>
+                <div id="locationChart" class="chart"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Supabase configuration - loaded from Netlify environment variables
+        const SUPABASE_URL = 'https://druvfhkainyorfsjkckl.supabase.co';
+        let SUPABASE_ANON_KEY = ''; // Will be loaded from Netlify function
+        
+        // Load config from Netlify function
+        async function loadConfig() {
+            try {
+                debugLog('🔧 Loading configuration from Netlify...');
+                const response = await fetch('/.netlify/functions/get-config');
+                
+                if (!response.ok) {
+                    throw new Error(`Config request failed: ${response.status}`);
+                }
+                
+                const config = await response.json();
+                SUPABASE_ANON_KEY = config.supabaseAnonKey;
+                
+                if (!SUPABASE_ANON_KEY) {
+                    throw new Error('API key not found in configuration');
+                }
+                
+                debugLog('✅ Configuration loaded successfully');
+                return true;
+            } catch (error) {
+                debugLog(`❌ Failed to load config: ${error.message}`);
+                console.error('Config loading error:', error);
+                return false;
+            }
+        }
+        
+        // Debug logging helper
+        const debugLogs = [];
+        function debugLog(message) {
+            const timestamp = new Date().toLocaleTimeString();
+            const logMessage = `[${timestamp}] ${message}`;
+            debugLogs.push(logMessage);
+            console.log(logMessage);
+            
+            // Update debug display
+            const debugInfo = document.getElementById('debugInfo');
+            if (debugInfo) {
+                debugInfo.innerHTML = debugLogs.slice(-10).join('<br>');
+            }
+        }
+
+        // Initialize Supabase client
+        let supabase;
+
+        // Function to categorize time of day
+        function getTimeOfDay(hour) {
+            if (hour >= 5 && hour < 12) return 'Morning (5am-12pm)';
+            if (hour >= 12 && hour < 17) return 'Afternoon (12pm-5pm)';
+            if (hour >= 17 && hour < 21) return 'Evening (5pm-9pm)';
+            return 'Night (9pm-5am)';
+        }
+
+        // Function to convert UTC to Eastern Time (accounting for DST)
+        function convertToEasternTime(utcDateString) {
+            const utcDate = new Date(utcDateString);
+            
+            // Use Intl.DateTimeFormat to handle DST automatically
+            const easternTime = new Intl.DateTimeFormat('en-US', {
+                timeZone: 'America/New_York',
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: false
+            }).formatToParts(utcDate);
+
+            // Reconstruct the date
+            const year = parseInt(easternTime.find(part => part.type === 'year').value);
+            const month = parseInt(easternTime.find(part => part.type === 'month').value) - 1; // JS months are 0-indexed
+            const day = parseInt(easternTime.find(part => part.type === 'day').value);
+            const hour = parseInt(easternTime.find(part => part.type === 'hour').value);
+            const minute = parseInt(easternTime.find(part => part.type === 'minute').value);
+
+            return new Date(year, month, day, hour, minute);
+        }
+
+        // Global variables
+        let yogaData = [];
+        let availableYears = [];
+        const loading = document.getElementById('loading');
+        const error = document.getElementById('error');
+        const dashboardContent = document.getElementById('dashboardContent');
+
+        // Color palette
+        const colors = {
+            primary: '#667eea',
+            secondary: '#764ba2',
+            accent: '#f093fb',
+            success: '#4ecdc4',
+            warning: '#ffe66d',
+            danger: '#ff6b6b',
+            dark: '#1a1a2e',
+            light: '#e1e5e9',
+            muted: '#a0a9b8'
+        };
+
+        const chartColors = [colors.primary, colors.secondary, colors.accent, colors.success, colors.warning, colors.danger];
+
+        // Load data from Supabase with enhanced debugging
+        async function loadDataFromSupabase() {
+            try {
+                debugLog('🔍 Starting Supabase connection...');
+                debugLog(`📡 Supabase URL: ${SUPABASE_URL}`);
+                debugLog(`🔑 API Key status: ${SUPABASE_ANON_KEY ? 'LOADED' : 'NOT LOADED'}`);
+                
+                // Check if API key is loaded
+                if (!SUPABASE_ANON_KEY) {
+                    throw new Error('API key not loaded. Please check Netlify environment variables.');
+                }
+
+                // Initialize Supabase client
+                debugLog('🚀 Initializing Supabase client...');
+                supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+                debugLog('✅ Supabase client initialized');
+                
+                // Test basic connection first
+                debugLog('🧪 Testing basic connection...');
+                const { count, error: countError } = await supabase
+                    .from('yoga_classes')
+                    .select('*', { count: 'exact', head: true });
+                
+                if (countError) {
+                    debugLog(`❌ Basic connection failed: ${countError.message}`);
+                    throw new Error(`Basic connection failed: ${countError.message}`);
+                }
+                
+                debugLog(`✅ Basic connection successful. Total rows: ${count}`);
+                
+                // Test without status filter first
+                debugLog('🧪 Testing query without filters...');
+                const { data: testData, error: testError } = await supabase
+                    .from('yoga_classes')
+                    .select('*')
+                    .limit(3);
+                
+                if (testError) {
+                    debugLog(`❌ Test query failed: ${testError.message}`);
+                    throw new Error(`Test query failed: ${testError.message}`);
+                }
+                
+                debugLog(`✅ Test query successful. Sample data count: ${testData.length}`);
+                if (testData.length > 0) {
+                    debugLog(`📋 Sample status values: ${testData.map(d => d.status).join(', ')}`);
+                    debugLog(`📋 Sample columns: ${Object.keys(testData[0]).join(', ')}`);
+                }
+                
+                // Now try the actual query with status filter
+                debugLog('🔍 Fetching signed_in classes...');
+                const { data, error: fetchError } = await supabase
+                    .from('yoga_classes')
+                    .select('*')
+                    .eq('status', 'signed_in')
+                    .order('start_time', { ascending: false });
+
+                debugLog(`📥 Query completed. Error: ${fetchError ? fetchError.message : 'none'}`);
+                debugLog(`📊 Data count: ${data ? data.length : 0}`);
+
+                if (fetchError) {
+                    throw new Error(`Database query failed: ${fetchError.message}`);
+                }
+
+                if (!data || data.length === 0) {
+                    debugLog('⚠️ No data returned from filtered query');
+                    
+                    // Try to get count of signed_in records
+                    const { count: signedInCount, error: countErr } = await supabase
+                        .from('yoga_classes')
+                        .select('*', { count: 'exact', head: true })
+                        .eq('status', 'signed_in');
+                    
+                    debugLog(`🔢 Count of signed_in records: ${signedInCount}`);
+                    
+                    throw new Error(`No yoga class data found. Total signed_in records: ${signedInCount || 0}`);
+                }
+
+                debugLog(`✅ Successfully loaded ${data.length} yoga classes from database`);
+                
+                // Process the data
+                debugLog('⚙️ Processing data...');
+                yogaData = data.map(row => {
+                    const easternDate = convertToEasternTime(row.start_time);
+                    
+                    return {
+                        ...row,
+                        start_time_eastern: easternDate,
+                        date_only: easternDate.toISOString().split('T')[0],
+                        month: easternDate.getMonth() + 1,
+                        year: easternDate.getFullYear(),
+                        day_of_week: easternDate.toLocaleDateString('en-US', { weekday: 'long' }),
+                        time_display: easternDate.toLocaleTimeString('en-US', { 
+                            hour: 'numeric', 
+                            minute: '2-digit',
+                            hour12: true 
+                        }),
+                        hour_24: easternDate.getHours(),
+                        time_of_day: getTimeOfDay(easternDate.getHours())
+                    };
+                });
+
+                // Get available years for filters
+                availableYears = [...new Set(yogaData.map(d => d.year))].sort((a, b) => b - a);
+                debugLog(`📅 Available years: ${availableYears.join(', ')}`);
+
+                // Hide loading, show dashboard
+                debugLog('🎉 Initialization complete!');
+                loading.classList.add('hidden');
+                dashboardContent.classList.add('visible');
+                
+                // Initialize dashboard
+                initDashboard();
+
+            } catch (err) {
+                debugLog(`💥 Error: ${err.message}`);
+                console.error('Full error details:', err);
+                
+                // Show error message with debug info
+                loading.classList.add('hidden');
+                error.classList.add('visible');
+                document.getElementById('errorMessage').textContent = err.message;
+                document.getElementById('debugInfo').style.display = 'block';
+                
+                // Add specific help for common issues
+                if (err.message.includes('API key not loaded')) {
+                    document.getElementById('errorMessage').innerHTML = 
+                        'API key not loaded from Netlify environment variables.<br>' +
+                        '<small>Please check that SUPABASE_ANON_KEY is set in your Netlify site settings.</small>';
+                } else if (err.message.includes('Config request failed')) {
+                    document.getElementById('errorMessage').innerHTML = 
+                        'Failed to load configuration.<br>' +
+                        '<small>Please ensure the get-config Netlify function is deployed properly.</small>';
+                }
+            }
+        }
+
+        function initDashboard() {
+            if (yogaData.length === 0) return;
+
+            debugLog('🎨 Rendering dashboard...');
+
+            // Generate statistics
+            const totalClasses = yogaData.length;
+            const uniqueInstructors = [...new Set(yogaData.map(d => d.instructor))].length;
+            const uniqueLocations = [...new Set(yogaData.map(d => d.location_name))].length;
+            const uniqueClassTypes = [...new Set(yogaData.map(d => d.class_name))].length;
+
+            debugLog(`📊 Stats: ${totalClasses} classes, ${uniqueInstructors} instructors, ${uniqueLocations} locations, ${uniqueClassTypes} class types`);
+
+            // Render stats
+            renderStats({ totalClasses, uniqueInstructors, uniqueLocations, uniqueClassTypes });
+
+            // Setup year filters
+            setupYearFilters();
+
+            // Generate chart data
+            const chartData = generateChartData(yogaData);
+
+            // Render charts
+            renderMonthlyChart(chartData.monthlyData);
+            renderDayChart(chartData.dayData);
+            renderTimeChart(chartData.timeData);
+            renderRecentChart(yogaData); // Pass full data for recent classes
+            renderActivityChart(chartData.dailyActivity);
+            renderHeatmapChart(chartData.heatmapData);
+            renderInstructorChart(chartData.topInstructors);
+            renderClassChart(chartData.topClassTypes);
+            renderLocationChart(chartData.locationData);
+
+            debugLog('✅ Dashboard rendered successfully!');
+        }
+
+        function renderStats(stats) {
+            const statsGrid = document.getElementById('statsGrid');
+            const statCards = [
+                { number: stats.totalClasses, label: 'Total Classes' },
+                { number: stats.uniqueInstructors, label: 'Instructors' },
+                { number: stats.uniqueLocations, label: 'Locations' },
+                { number: stats.uniqueClassTypes, label: 'Class Types' }
+            ];
+
+            statsGrid.innerHTML = statCards.map(stat => `
+                <div class="stat-card">
+                    <div class="stat-number">${stat.number}</div>
+                    <div class="stat-label">${stat.label}</div>
+                </div>
+            `).join('');
+        }
+
+        function setupYearFilters() {
+            const filterIds = ['monthlyYearFilter', 'dayYearFilter', 'timeYearFilter', 'instructorYearFilter', 'classYearFilter', 'locationYearFilter', 'heatmapYearFilter', 'recentYearFilter'];
+            
+            filterIds.forEach(filterId => {
+                const filter = document.getElementById(filterId);
+                
+                // Clear existing options except "All Years" or "All Time"
+                const defaultText = filterId === 'recentYearFilter' ? 'All Time' : 'All Years';
+                filter.innerHTML = `<option value="all">${defaultText}</option>`;
+                
+                // Add year options
+                availableYears.forEach(year => {
+                    const option = document.createElement('option');
+                    option.value = year;
+                    option.textContent = year;
+                    filter.appendChild(option);
+                });
+                
+                // Add event listener
+                filter.addEventListener('change', function() {
+                    updateChart(filterId.replace('YearFilter', ''), this.value);
+                });
+            });
+
+            // Setup activity chart filter with 3-year ranges
+            const activityFilter = document.getElementById('activityYearFilter');
+            activityFilter.innerHTML = '';
+            
+            // Create 3-year range options for activity chart
+            if (availableYears.length >= 3) {
+                for (let i = 0; i <= availableYears.length - 3; i++) {
+                    const endYear = availableYears[i];
+                    const startYear = endYear - 2;
+                    
+                    const option = document.createElement('option');
+                    option.value = `${startYear}-${endYear}`;
+                    option.textContent = `${startYear}-${endYear}`;
+                    activityFilter.appendChild(option);
+                }
+            } else {
+                // If less than 3 years, show what we have
+                const minYear = Math.min(...availableYears);
+                const maxYear = Math.max(...availableYears);
+                const option = document.createElement('option');
+                option.value = `${minYear}-${maxYear}`;
+                option.textContent = `${minYear}-${maxYear}`;
+                activityFilter.appendChild(option);
+            }
+            
+            activityFilter.addEventListener('change', function() {
+                updateActivityChart(this.value);
+            });
+        }
+
+        function updateChart(chartType, selectedYear) {
+            let filteredData = yogaData;
+            
+            if (selectedYear !== 'all') {
+                filteredData = yogaData.filter(d => d.year === parseInt(selectedYear));
+            }
+            
+            const chartData = generateChartData(filteredData);
+            
+            switch(chartType) {
+                case 'monthly':
+                    renderMonthlyChart(chartData.monthlyData);
+                    break;
+                case 'day':
+                    renderDayChart(chartData.dayData);
+                    break;
+                case 'time':
+                    renderTimeChart(chartData.timeData);
+                    break;
+                case 'instructor':
+                    renderInstructorChart(chartData.topInstructors);
+                    break;
+                case 'class':
+                    renderClassChart(chartData.topClassTypes);
+                    break;
+                case 'location':
+                    renderLocationChart(chartData.locationData);
+                    break;
+                case 'heatmap':
+                    renderHeatmapChart(chartData.heatmapData);
+                    break;
+                case 'recent':
+                    renderRecentChart(filteredData);
+                    break;
+            }
+        }
+
+        function updateActivityChart(yearRange) {
+            const [startYear, endYear] = yearRange.split('-').map(Number);
+            
+            // Filter data for the selected 3-year range
+            const filteredData = yogaData.filter(d => d.year >= startYear && d.year <= endYear);
+            
+            // Generate daily activity for filtered data
+            const dailyGroups = {};
+            filteredData.forEach(d => {
+                dailyGroups[d.date_only] = (dailyGroups[d.date_only] || 0) + 1;
+            });
+            
+            renderActivityChart(dailyGroups, startYear, endYear);
+        }
+
+        function generateChartData(data) {
+            // Monthly data (exclude current partial month)
+            const currentDate = new Date();
+            const currentMonth = currentDate.getMonth() + 1;
+            const currentYear = currentDate.getFullYear();
+            
+            const monthlyGroups = {};
+            data.forEach(d => {
+                const monthKey = `${d.year}-${d.month.toString().padStart(2, '0')}`;
+                // Exclude current month if it's the current year and month
+                const isCurrentMonth = d.year === currentYear && d.month === currentMonth;
+                if (!isCurrentMonth) {
+                    monthlyGroups[monthKey] = (monthlyGroups[monthKey] || 0) + 1;
+                }
+            });
+            const monthlyData = Object.entries(monthlyGroups)
+                .map(([month, count]) => ({ month, count }))
+                .sort((a, b) => a.month.localeCompare(b.month));
+
+            // Day of week data
+            const dayGroups = {};
+            const dayOrder = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+            data.forEach(d => {
+                dayGroups[d.day_of_week] = (dayGroups[d.day_of_week] || 0) + 1;
+            });
+            const dayData = dayOrder.map(day => ({
+                day,
+                count: dayGroups[day] || 0
+            }));
+
+            // Daily activity for heatmap
+            const dailyGroups = {};
+            data.forEach(d => {
+                dailyGroups[d.date_only] = (dailyGroups[d.date_only] || 0) + 1;
+            });
+
+            // Time of day data
+            const timeGroups = {};
+            data.forEach(d => {
+                timeGroups[d.time_of_day] = (timeGroups[d.time_of_day] || 0) + 1;
+            });
+            const timeOrder = ['Morning (5am-12pm)', 'Afternoon (12pm-5pm)', 'Evening (5pm-9pm)', 'Night (9pm-5am)'];
+            const timeData = timeOrder.map(time => ({
+                time,
+                count: timeGroups[time] || 0
+            }));
+
+            // Top instructors
+            const instructorGroups = {};
+            data.forEach(d => {
+                const instructor = d.instructor.replace('(sub) ', '');
+                instructorGroups[instructor] = (instructorGroups[instructor] || 0) + 1;
+            });
+            const topInstructors = Object.entries(instructorGroups)
+                .map(([instructor, count]) => ({ instructor, count }))
+                .sort((a, b) => b.count - a.count)
+                .slice(0, 8);
+
+            // Top class types
+            const classGroups = {};
+            data.forEach(d => {
+                classGroups[d.class_name] = (classGroups[d.class_name] || 0) + 1;
+            });
+            const topClassTypes = Object.entries(classGroups)
+                .map(([className, count]) => ({ className, count }))
+                .sort((a, b) => b.count - a.count)
+                .slice(0, 6);
+
+            // Location data
+            const locationGroups = {};
+            data.forEach(d => {
+                const location = d.location_name.replace('Highland Yoga ', '');
+                locationGroups[location] = (locationGroups[location] || 0) + 1;
+            });
+            const locationData = Object.entries(locationGroups)
+                .map(([location, count]) => ({ location, count }))
+                .sort((a, b) => b.count - a.count);
+
+            // Heatmap data (day vs month)
+            const heatmapData = generateHeatmapData(data);
+
+            return {
+                monthlyData,
+                dayData,
+                timeData,
+                dailyActivity: dailyGroups,
+                topInstructors,
+                topClassTypes,
+                locationData,
+                heatmapData
+            };
+        }
+
+        function generateHeatmapData(data) {
+            // Create a matrix: 7 days of week x 12 months
+            const heatmapMatrix = {};
+            
+            // Initialize matrix with zeros
+            const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+            for (let dayIndex = 0; dayIndex < 7; dayIndex++) {
+                for (let month = 1; month <= 12; month++) {
+                    const key = `${dayIndex}-${month}`;
+                    heatmapMatrix[key] = 0;
+                }
+            }
+            
+            // Populate with actual data
+            data.forEach(d => {
+                const dayOfWeek = d.start_time_eastern.getDay(); // 0 = Sunday, 1 = Monday, etc.
+                // Convert to Monday = 0, Tuesday = 1, ..., Sunday = 6
+                const mondayBasedDay = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+                const month = d.start_time_eastern.getMonth() + 1; // JS months are 0-indexed
+                const key = `${mondayBasedDay}-${month}`;
+                heatmapMatrix[key] = (heatmapMatrix[key] || 0) + 1;
+            });
+            
+            // Convert to array format for ECharts: [month_index, day_index, value]
+            const heatmapArray = [];
+            for (let month = 1; month <= 12; month++) {
+                for (let dayIndex = 0; dayIndex < 7; dayIndex++) {
+                    const key = `${dayIndex}-${month}`;
+                    const value = heatmapMatrix[key] || 0;
+                    // ECharts expects [x, y, value] where x=month-1, y=dayIndex (0-indexed)
+                    heatmapArray.push([month - 1, dayIndex, value]);
+                }
+            }
+            
+            return heatmapArray;
+        }
+
+        function renderRecentChart(data) {
+            const chart = echarts.init(document.getElementById('recentChart'));
+            
+            // Get 10 most recent classes
+            const recentClasses = [...data]
+                .sort((a, b) => new Date(b.start_time) - new Date(a.start_time))
+                .slice(0, 10);
+            
+            // Prepare data for timeline chart
+            const timelineData = recentClasses.map((cls, index) => {
+                const date = new Date(cls.start_time);
+                const formattedDate = date.toLocaleDateString('en-US', { 
+                    month: 'short', 
+                    day: 'numeric' 
+                });
+                const dayOfWeek = date.toLocaleDateString('en-US', { weekday: 'short' });
+                
+                return {
+                    name: `${formattedDate} (${dayOfWeek})`,
+                    value: [
+                        index,
+                        `${cls.class_name}\n${cls.instructor}\n${cls.time_display}`,
+                        cls.class_name,
+                        cls.instructor,
+                        cls.time_display,
+                        formattedDate,
+                        dayOfWeek
+                    ],
+                    itemStyle: {
+                        color: chartColors[index % chartColors.length]
+                    }
+                };
+            });
+            
+            const option = {
+                backgroundColor: 'transparent',
+                tooltip: {
+                    trigger: 'item',
+                    formatter: function(params) {
+                        const data = params.data.value;
+                        return `<strong>${data[2]}</strong><br/>
+                                Instructor: ${data[3]}<br/>
+                                Time: ${data[4]}<br/>
+                                Date: ${data[5]} (${data[6]})`;
+                    },
+                    backgroundColor: colors.dark,
+                    borderColor: colors.primary,
+                    textStyle: { color: colors.light }
+                },
+                grid: {
+                    left: '3%',
+                    right: '4%',
+                    bottom: '3%',
+                    containLabel: true
+                },
+                xAxis: {
+                    type: 'category',
+                    data: timelineData.map(d => d.name),
+                    axisLabel: { 
+                        color: colors.muted,
+                        fontSize: 10,
+                        rotate: 45,
+                        interval: 0
+                    },
+                    axisLine: { lineStyle: { color: '#2d3748' } },
+                    axisTick: { show: false }
+                },
+                yAxis: {
+                    type: 'category',
+                    data: ['Recent Classes'],
+                    axisLabel: { color: colors.muted },
+                    axisLine: { lineStyle: { color: '#2d3748' } },
+                    axisTick: { show: false },
+                    splitLine: { show: false }
+                },
+                series: [{
+                    type: 'scatter',
+                    data: timelineData.map((item, index) => [index, 0]),
+                    symbolSize: 20,
+                    itemStyle: {
+                        color: function(params) {
+                            return chartColors[params.dataIndex % chartColors.length];
+                        }
+                    },
+                    label: {
+                        show: true,
+                        position: 'top',
+                        formatter: function(params) {
+                            const classData = recentClasses[params.dataIndex];
+                            return `${classData.class_name}\n${classData.instructor}`;
+                        },
+                        color: colors.light,
+                        fontSize: 10,
+                        lineHeight: 12
+                    },
+                    emphasis: {
+                        scale: 1.5,
+                        itemStyle: {
+                            shadowBlur: 10,
+                            shadowColor: 'rgba(0, 0, 0, 0.5)'
+                        }
+                    }
+                }]
+            };
+            
+            chart.setOption(option);
+        }
+
+        function renderMonthlyChart(monthlyData) {
+            const chart = echarts.init(document.getElementById('monthlyChart'));
+            
+            const option = {
+                backgroundColor: 'transparent',
+                tooltip: {
+                    trigger: 'axis',
+                    backgroundColor: colors.dark,
+                    borderColor: colors.primary,
+                    textStyle: { color: colors.light }
+                },
+                grid: {
+                    left: '3%',
+                    right: '4%',
+                    bottom: '3%',
+                    containLabel: true
+                },
+                xAxis: {
+                    type: 'category',
+                    data: monthlyData.map(d => d.month),
+                    axisLabel: { color: colors.muted, fontSize: 11 },
+                    axisLine: { lineStyle: { color: '#2d3748' } }
+                },
+                yAxis: {
+                    type: 'value',
+                    axisLabel: { color: colors.muted },
+                    axisLine: { lineStyle: { color: '#2d3748' } },
+                    splitLine: { lineStyle: { color: '#2d3748' } }
+                },
+                series: [{
+                    data: monthlyData.map(d => d.count),
+                    type: 'line',
+                    smooth: true,
+                    lineStyle: { color: colors.primary, width: 3 },
+                    itemStyle: { color: colors.primary },
+                    areaStyle: {
+                        color: {
+                            type: 'linear',
+                            x: 0, y: 0, x2: 0, y2: 1,
+                            colorStops: [{
+                                offset: 0, color: colors.primary + '80'
+                            }, {
+                                offset: 1, color: colors.primary + '10'
+                            }]
+                        }
+                    }
+                }]
+            };
+            
+            chart.setOption(option);
+        }
+
+        function renderDayChart(dayData) {
+            const chart = echarts.init(document.getElementById('dayChart'));
+            
+            const option = {
+                backgroundColor: 'transparent',
+                tooltip: {
+                    trigger: 'item',
+                    backgroundColor: colors.dark,
+                    borderColor: colors.primary,
+                    textStyle: { color: colors.light }
+                },
+                grid: {
+                    left: '3%',
+                    right: '4%',
+                    bottom: '3%',
+                    containLabel: true
+                },
+                xAxis: {
+                    type: 'category',
+                    data: dayData.map(d => d.day.substring(0, 3)),
+                    axisLabel: { color: colors.muted },
+                    axisLine: { lineStyle: { color: '#2d3748' } }
+                },
+                yAxis: {
+                    type: 'value',
+                    axisLabel: { color: colors.muted },
+                    axisLine: { lineStyle: { color: '#2d3748' } },
+                    splitLine: { lineStyle: { color: '#2d3748' } }
+                },
+                series: [{
+                    data: dayData.map(d => d.count),
+                    type: 'bar',
+                    itemStyle: {
+                        color: {
+                            type: 'linear',
+                            x: 0, y: 0, x2: 0, y2: 1,
+                            colorStops: [
+                                { offset: 0, color: colors.secondary },
+                                { offset: 1, color: colors.primary }
+                            ]
+                        }
+                    },
+                    barWidth: '60%'
+                }]
+            };
+            
+            chart.setOption(option);
+        }
+
+        function renderTimeChart(timeData) {
+            const chart = echarts.init(document.getElementById('timeChart'));
+            
+            const option = {
+                backgroundColor: 'transparent',
+                tooltip: {
+                    trigger: 'item',
+                    backgroundColor: colors.dark,
+                    borderColor: colors.primary,
+                    textStyle: { color: colors.light }
+                },
+                series: [{
+                    type: 'pie',
+                    radius: ['40%', '70%'],
+                    data: timeData.map((item, index) => ({
+                        value: item.count,
+                        name: item.time,
+                        itemStyle: { color: chartColors[index % chartColors.length] }
+                    })),
+                    label: {
+                        color: colors.light,
+                        fontSize: 11,
+                        formatter: '{b}\n{c} classes'
+                    },
+                    emphasis: {
+                        itemStyle: {
+                            shadowBlur: 10,
+                            shadowOffsetX: 0,
+                            shadowColor: 'rgba(0, 0, 0, 0.5)'
+                        }
+                    }
+                }]
+            };
+            
+            chart.setOption(option);
+        }
+
+        function renderActivityChart(dailyActivity, startYear = null, endYear = null) {
+            const chart = echarts.init(document.getElementById('activityChart'));
+            
+            // Use provided years or default to most recent 3 years
+            let years = [];
+            if (startYear && endYear) {
+                for (let year = startYear; year <= endYear; year++) {
+                    years.push(year);
+                }
+            } else {
+                // Default to most recent 3 years
+                const sortedYears = [...availableYears].sort((a, b) => b - a);
+                years = sortedYears.slice(0, 3).reverse(); // Take most recent 3, then reverse for chronological order
+            }
+            
+            // Ensure we have exactly 3 years (pad if necessary)
+            while (years.length < 3) {
+                years.unshift(years[0] - 1);
+            }
+            
+            const maxValue = Math.max(...Object.values(dailyActivity));
+            
+            const option = {
+                backgroundColor: 'transparent',
+                tooltip: {
+                    position: 'top',
+                    formatter: function(p) {
+                        return `${p.data[0]}<br/>${p.data[1]} classes`;
+                    },
+                    backgroundColor: colors.dark,
+                    borderColor: colors.primary,
+                    textStyle: { color: colors.light }
+                },
+                visualMap: {
+                    min: 0,
+                    max: maxValue,
+                    type: 'piecewise',
+                    show: false,
+                    pieces: [
+                        { min: 0, max: 0, color: '#161b22' },
+                        { min: 1, max: 1, color: colors.primary + '40' },
+                        { min: 2, max: 2, color: colors.primary + '60' },
+                        { min: 3, max: 3, color: colors.primary + '80' },
+                        { min: 4, color: colors.primary }
+                    ]
+                },
+                calendar: years.map((year, index) => ({
+                    top: 80 + index * 160,
+                    left: 50,
+                    right: 50,
+                    cellSize: ['auto', 13],
+                    range: [`${year}-01-01`, `${year}-12-31`],
+                    itemStyle: {
+                        borderWidth: 0.5,
+                        borderColor: '#444'
+                    },
+                    yearLabel: { 
+                        show: true,
+                        color: colors.muted,
+                        fontSize: 16,
+                        position: 'top'
+                    },
+                    monthLabel: { 
+                        color: colors.muted,
+                        fontSize: 12
+                    },
+                    dayLabel: { 
+                        color: colors.muted,
+                        fontSize: 10
+                    }
+                })),
+                series: years.map((year, index) => {
+                    const yearData = [];
+                    const startDate = new Date(year, 0, 1);
+                    const endDate = new Date(year, 11, 31);
+                    
+                    for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+                        const dateStr = d.toISOString().split('T')[0];
+                        const count = dailyActivity[dateStr] || 0;
+                        yearData.push([dateStr, count]);
+                    }
+                    
+                    return {
+                        type: 'heatmap',
+                        coordinateSystem: 'calendar',
+                        calendarIndex: index,
+                        data: yearData
+                    };
+                })
+            };
+            
+            chart.setOption(option);
+        }
+
+        function renderHeatmapChart(heatmapData) {
+            const chart = echarts.init(document.getElementById('heatmapChart'));
+            
+            const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            const daysOfWeek = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+            
+            // Find max value for color scaling
+            const maxValue = Math.max(...heatmapData.map(item => item[2]));
+            
+            const option = {
+                backgroundColor: 'transparent',
+                tooltip: {
+                    position: 'top',
+                    formatter: function(params) {
+                        const month = months[params.data[0]];
+                        const dayOfWeek = daysOfWeek[params.data[1]];
+                        const count = params.data[2];
+                        return `${dayOfWeek} in ${month}<br/>${count} classes`;
+                    },
+                    backgroundColor: colors.dark,
+                    borderColor: colors.primary,
+                    textStyle: { color: colors.light }
+                },
+                grid: {
+                    height: '50%',
+                    top: '15%',
+                    left: '12%',
+                    right: '5%',
+                    bottom: '35%'
+                },
+                xAxis: {
+                    type: 'category',
+                    data: months,
+                    splitArea: {
+                        show: true,
+                        areaStyle: {
+                            color: ['rgba(255,255,255,0.02)', 'rgba(255,255,255,0.05)']
+                        }
+                    },
+                    axisLabel: {
+                        color: colors.muted,
+                        fontSize: 12
+                    },
+                    axisLine: {
+                        show: false
+                    },
+                    axisTick: {
+                        show: false
+                    }
+                },
+                yAxis: {
+                    type: 'category',
+                    data: daysOfWeek,
+                    splitArea: {
+                        show: true,
+                        areaStyle: {
+                            color: ['rgba(255,255,255,0.02)', 'rgba(255,255,255,0.05)']
+                        }
+                    },
+                    axisLabel: {
+                        color: colors.muted,
+                        fontSize: 12
+                    },
+                    axisLine: {
+                        show: false
+                    },
+                    axisTick: {
+                        show: false
+                    }
+                },
+                visualMap: {
+                    min: 0,
+                    max: maxValue,
+                    calculable: true,
+                    orient: 'horizontal',
+                    left: 'center',
+                    bottom: '8%',
+                    textStyle: {
+                        color: colors.muted
+                    },
+                    inRange: {
+                        color: [
+                            '#161b22',
+                            colors.primary + '20',
+                            colors.primary + '40', 
+                            colors.primary + '60',
+                            colors.primary + '80',
+                            colors.primary
+                        ]
+                    }
+                },
+                series: [{
+                    name: 'Classes',
+                    type: 'heatmap',
+                    data: heatmapData,
+                    label: {
+                        show: true
+                    },
+                    emphasis: {
+                        itemStyle: {
+                            shadowBlur: 10,
+                            shadowColor: 'rgba(0, 0, 0, 0.5)'
+                        }
+                    }
+                }]
+            };
+            
+            chart.setOption(option);
+        }
+
+        function renderInstructorChart(topInstructors) {
+            const chart = echarts.init(document.getElementById('instructorChart'));
+            
+            const option = {
+                backgroundColor: 'transparent',
+                tooltip: {
+                    trigger: 'item',
+                    backgroundColor: colors.dark,
+                    borderColor: colors.primary,
+                    textStyle: { color: colors.light }
+                },
+                series: [{
+                    type: 'pie',
+                    radius: ['40%', '70%'],
+                    data: topInstructors.map((item, index) => ({
+                        value: item.count,
+                        name: item.instructor,
+                        itemStyle: { color: chartColors[index % chartColors.length] }
+                    })),
+                    label: {
+                        color: colors.light,
+                        fontSize: 11
+                    },
+                    emphasis: {
+                        itemStyle: {
+                            shadowBlur: 10,
+                            shadowOffsetX: 0,
+                            shadowColor: 'rgba(0, 0, 0, 0.5)'
+                        }
+                    }
+                }]
+            };
+            
+            chart.setOption(option);
+        }
+
+        function renderClassChart(topClassTypes) {
+            const chart = echarts.init(document.getElementById('classChart'));
+            
+            const option = {
+                backgroundColor: 'transparent',
+                tooltip: {
+                    trigger: 'item',
+                    backgroundColor: colors.dark,
+                    borderColor: colors.primary,
+                    textStyle: { color: colors.light }
+                },
+                series: [{
+                    type: 'pie',
+                    radius: ['30%', '70%'],
+                    data: topClassTypes.map((item, index) => ({
+                        value: item.count,
+                        name: item.className,
+                        itemStyle: { color: chartColors[index % chartColors.length] }
+                    })),
+                    label: {
+                        color: colors.light,
+                        fontSize: 10,
+                        formatter: '{b}\n{d}%'
+                    },
+                    emphasis: {
+                        itemStyle: {
+                            shadowBlur: 10,
+                            shadowOffsetX: 0,
+                            shadowColor: 'rgba(0, 0, 0, 0.5)'
+                        }
+                    }
+                }]
+            };
+            
+            chart.setOption(option);
+        }
+
+        function renderLocationChart(locationData) {
+            const chart = echarts.init(document.getElementById('locationChart'));
+            
+            const option = {
+                backgroundColor: 'transparent',
+                tooltip: {
+                    trigger: 'axis',
+                    axisPointer: {
+                        type: 'shadow'
+                    },
+                    backgroundColor: colors.dark,
+                    borderColor: colors.primary,
+                    textStyle: { color: colors.light }
+                },
+                grid: {
+                    left: '3%',
+                    right: '4%',
+                    bottom: '3%',
+                    containLabel: true
+                },
+                xAxis: {
+                    type: 'value',
+                    axisLabel: { color: colors.muted },
+                    axisLine: { lineStyle: { color: '#2d3748' } },
+                    splitLine: { lineStyle: { color: '#2d3748' } }
+                },
+                yAxis: {
+                    type: 'category',
+                    data: locationData.map(d => d.location),
+                    axisLabel: { color: colors.muted },
+                    axisLine: { lineStyle: { color: '#2d3748' } }
+                },
+                series: [{
+                    data: locationData.map((item, index) => ({
+                        value: item.count,
+                        itemStyle: { color: chartColors[index % chartColors.length] }
+                    })),
+                    type: 'bar',
+                    barWidth: '60%'
+                }]
+            };
+            
+            chart.setOption(option);
+        }
+
+        // Load data when page loads
+        document.addEventListener('DOMContentLoaded', async function() {
+            // Check if required libraries are loaded
+            if (typeof window.supabase === 'undefined') {
+                debugLog('❌ Supabase library not loaded');
+                loading.classList.add('hidden');
+                error.classList.add('visible');
+                document.getElementById('errorMessage').textContent = 'Supabase library failed to load. Please check your internet connection.';
+                return;
+            }
+            
+            if (typeof echarts === 'undefined') {
+                debugLog('❌ ECharts library not loaded');
+                loading.classList.add('hidden');
+                error.classList.add('visible');
+                document.getElementById('errorMessage').textContent = 'ECharts library failed to load. Please check your internet connection.';
+                return;
+            }
+            
+            debugLog('✅ All libraries loaded successfully');
+            
+            // Load configuration first
+            const configLoaded = await loadConfig();
+            if (!configLoaded) {
+                loading.classList.add('hidden');
+                error.classList.add('visible');
+                document.getElementById('errorMessage').innerHTML = 
+                    'Failed to load configuration from Netlify.<br>' +
+                    '<small>Please check that your Netlify function is deployed and SUPABASE_ANON_KEY environment variable is set.</small>';
+                document.getElementById('debugInfo').style.display = 'block';
+                return;
+            }
+            
+            // Load data from Supabase
+            loadDataFromSupabase();
+        });
+    </script>
+</body>
+</html>
