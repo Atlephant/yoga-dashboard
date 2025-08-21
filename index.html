@@ -285,16 +285,16 @@
                     </div>
                     <div id="dayChart" class="chart"></div>
                 </div>
-                
-                <div class="chart-container">
-                    <div class="chart-header">
-                        <h3 class="chart-title">Classes by Time of Day</h3>
-                        <select class="year-filter" id="timeYearFilter">
-                            <option value="all">All Years</option>
-                        </select>
-                    </div>
-                    <div id="timeChart" class="chart"></div>
+            </div>
+
+            <div class="chart-container">
+                <div class="chart-header">
+                    <h3 class="chart-title">Practice Time Preferences - Ranking Over Time</h3>
+                    <select class="year-filter" id="timeYearFilter">
+                        <option value="all">All Years</option>
+                    </select>
                 </div>
+                <div id="timeChart" class="chart large"></div>
             </div>
 
             <div class="charts-grid">
@@ -981,38 +981,201 @@
         function renderTimeChart(timeData) {
             const chart = echarts.init(document.getElementById('timeChart'));
             
+            // Generate monthly time preference data for bump chart
+            const monthlyTimeData = generateMonthlyTimeData(yogaData);
+            
+            if (!monthlyTimeData || monthlyTimeData.months.length === 0) {
+                // Fallback to simple pie chart if not enough data
+                const option = {
+                    backgroundColor: 'transparent',
+                    tooltip: {
+                        trigger: 'item',
+                        backgroundColor: colors.dark,
+                        borderColor: colors.primary,
+                        textStyle: { color: colors.light }
+                    },
+                    series: [{
+                        type: 'pie',
+                        radius: ['40%', '70%'],
+                        data: timeData.map((item, index) => ({
+                            value: item.count,
+                            name: item.time,
+                            itemStyle: { color: chartColors[index % chartColors.length] }
+                        })),
+                        label: {
+                            color: colors.light,
+                            fontSize: 11,
+                            formatter: '{b}\n{c} classes'
+                        }
+                    }]
+                };
+                chart.setOption(option);
+                return;
+            }
+            
             const option = {
                 backgroundColor: 'transparent',
                 tooltip: {
-                    trigger: 'item',
+                    trigger: 'axis',
+                    formatter: function(params) {
+                        let result = `<strong>${params[0].name}</strong><br/>`;
+                        params.forEach(param => {
+                            const rank = param.value;
+                            const suffix = rank === 1 ? 'st' : rank === 2 ? 'nd' : rank === 3 ? 'rd' : 'th';
+                            result += `${param.marker} ${param.seriesName}: ${rank}${suffix} place<br/>`;
+                        });
+                        return result;
+                    },
                     backgroundColor: colors.dark,
                     borderColor: colors.primary,
                     textStyle: { color: colors.light }
                 },
-                series: [{
-                    type: 'pie',
-                    radius: ['40%', '70%'],
-                    data: timeData.map((item, index) => ({
-                        value: item.count,
-                        name: item.time,
-                        itemStyle: { color: chartColors[index % chartColors.length] }
-                    })),
-                    label: {
-                        color: colors.light,
+                legend: {
+                    data: ['Morning', 'Afternoon', 'Evening', 'Night'],
+                    textStyle: { color: colors.light },
+                    bottom: 10
+                },
+                grid: {
+                    left: '3%',
+                    right: '4%',
+                    bottom: '15%',
+                    top: '10%',
+                    containLabel: true
+                },
+                xAxis: {
+                    type: 'category',
+                    data: monthlyTimeData.months,
+                    axisLabel: { 
+                        color: colors.muted,
                         fontSize: 11,
-                        formatter: '{b}\n{c} classes'
+                        rotate: 45
                     },
-                    emphasis: {
-                        itemStyle: {
-                            shadowBlur: 10,
-                            shadowOffsetX: 0,
-                            shadowColor: 'rgba(0, 0, 0, 0.5)'
+                    axisLine: { lineStyle: { color: '#2d3748' } }
+                },
+                yAxis: {
+                    type: 'value',
+                    min: 1,
+                    max: 4,
+                    interval: 1,
+                    inverse: true, // Lower numbers (better rankings) at top
+                    axisLabel: { 
+                        color: colors.muted,
+                        formatter: function(value) {
+                            const ranks = ['', '1st', '2nd', '3rd', '4th'];
+                            return ranks[value] || value;
                         }
+                    },
+                    axisLine: { lineStyle: { color: '#2d3748' } },
+                    splitLine: { lineStyle: { color: '#2d3748' } }
+                },
+                series: [
+                    {
+                        name: 'Morning',
+                        type: 'line',
+                        data: monthlyTimeData.morning,
+                        lineStyle: { color: colors.warning, width: 3 },
+                        itemStyle: { color: colors.warning },
+                        symbol: 'circle',
+                        symbolSize: 8,
+                        smooth: true
+                    },
+                    {
+                        name: 'Afternoon',
+                        type: 'line',
+                        data: monthlyTimeData.afternoon,
+                        lineStyle: { color: colors.primary, width: 3 },
+                        itemStyle: { color: colors.primary },
+                        symbol: 'circle',
+                        symbolSize: 8,
+                        smooth: true
+                    },
+                    {
+                        name: 'Evening',
+                        type: 'line',
+                        data: monthlyTimeData.evening,
+                        lineStyle: { color: colors.secondary, width: 3 },
+                        itemStyle: { color: colors.secondary },
+                        symbol: 'circle',
+                        symbolSize: 8,
+                        smooth: true
+                    },
+                    {
+                        name: 'Night',
+                        type: 'line',
+                        data: monthlyTimeData.night,
+                        lineStyle: { color: colors.accent, width: 3 },
+                        itemStyle: { color: colors.accent },
+                        symbol: 'circle',
+                        symbolSize: 8,
+                        smooth: true
                     }
-                }]
+                ]
             };
             
             chart.setOption(option);
+        }
+
+        function generateMonthlyTimeData(data) {
+            // Group data by month and time of day
+            const monthlyGroups = {};
+            
+            data.forEach(d => {
+                const monthKey = `${d.year}-${d.month.toString().padStart(2, '0')}`;
+                if (!monthlyGroups[monthKey]) {
+                    monthlyGroups[monthKey] = {
+                        'Morning (5am-12pm)': 0,
+                        'Afternoon (12pm-5pm)': 0,
+                        'Evening (5pm-9pm)': 0,
+                        'Night (9pm-5am)': 0
+                    };
+                }
+                monthlyGroups[monthKey][d.time_of_day]++;
+            });
+            
+            // Get sorted months
+            const months = Object.keys(monthlyGroups).sort().slice(-12); // Last 12 months
+            
+            if (months.length < 3) {
+                return null; // Not enough data for meaningful bump chart
+            }
+            
+            // Calculate rankings for each month
+            const morningRanks = [];
+            const afternoonRanks = [];
+            const eveningRanks = [];
+            const nightRanks = [];
+            
+            months.forEach(month => {
+                const counts = monthlyGroups[month];
+                const sorted = [
+                    { time: 'Morning (5am-12pm)', count: counts['Morning (5am-12pm)'] },
+                    { time: 'Afternoon (12pm-5pm)', count: counts['Afternoon (12pm-5pm)'] },
+                    { time: 'Evening (5pm-9pm)', count: counts['Evening (5pm-9pm)'] },
+                    { time: 'Night (9pm-5am)', count: counts['Night (9pm-5am)'] }
+                ].sort((a, b) => b.count - a.count);
+                
+                // Assign rankings (1 = most classes, 4 = least classes)
+                const rankings = {};
+                sorted.forEach((item, index) => {
+                    rankings[item.time] = index + 1;
+                });
+                
+                morningRanks.push(rankings['Morning (5am-12pm)']);
+                afternoonRanks.push(rankings['Afternoon (12pm-5pm)']);
+                eveningRanks.push(rankings['Evening (5pm-9pm)']);
+                nightRanks.push(rankings['Night (9pm-5am)']);
+            });
+            
+            return {
+                months: months.map(m => {
+                    const [year, month] = m.split('-');
+                    return new Date(year, month - 1).toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+                }),
+                morning: morningRanks,
+                afternoon: afternoonRanks,
+                evening: eveningRanks,
+                night: nightRanks
+            };
         }
 
         function renderActivityChart(dailyActivity, startYear = null, endYear = null) {
